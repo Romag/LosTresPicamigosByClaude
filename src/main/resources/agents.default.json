@@ -6,14 +6,14 @@
       "executable": "codex",
       "model": "gpt",
       "aliases": ["chatgpt"],
-      "baseArgs": ["exec", "-", "--json"],
+      "baseArgs": ["exec", "--color", "never", "--skip-git-repo-check"],
       "promptVia": "stdin",
       "modes": {
-        "ask": ["--sandbox", "read-only"],
-        "edit": ["--sandbox", "workspace-write"]
+        "ask": ["-s", "read-only"],
+        "edit": ["-s", "workspace-write"]
       },
       "capabilities": { "implement": 9, "reason": 9, "plan": 8, "review": 8, "test": 8, "docs": 7 },
-      "usageParse": "codex-jsonl",
+      "usageParse": "none",
       "limitPatterns": ["(?i)usage limit reached", "(?i)rate.?limit"],
       "timeoutSeconds": 900,
       "maxOutputChars": 200000
@@ -23,14 +23,14 @@
       "executable": "claude",
       "model": "claude",
       "aliases": [],
-      "baseArgs": ["-p", "--output-format", "json"],
+      "baseArgs": ["-p"],
       "promptVia": "stdin",
       "modes": {
-        "ask": ["--allowedTools", "Read,Grep,Glob"],
+        "ask": ["--permission-mode", "plan"],
         "edit": ["--permission-mode", "acceptEdits"]
       },
       "capabilities": { "implement": 9, "reason": 9, "plan": 9, "review": 9, "test": 8, "docs": 8 },
-      "usageParse": "claude-json",
+      "usageParse": "none",
       "limitPatterns": ["(?i)usage limit", "(?i)rate limit", "(?i)5-hour limit"],
       "timeoutSeconds": 900,
       "maxOutputChars": 200000
@@ -40,11 +40,11 @@
       "executable": "agy",
       "model": "gemini-3.5-flash",
       "aliases": ["gemini", "agy"],
-      "baseArgs": ["-p"],
+      "baseArgs": ["-p", "--print-timeout", "10m"],
       "promptVia": "arg",
       "modes": {
-        "ask": ["--headless", "--approve", "none"],
-        "edit": ["--headless", "--approve", "all"]
+        "ask": ["--sandbox", "--dangerously-skip-permissions"],
+        "edit": ["--dangerously-skip-permissions"]
       },
       "capabilities": { "implement": 5, "reason": 6, "plan": 6, "review": 7, "test": 6, "docs": 7 },
       "usageParse": "none",

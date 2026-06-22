@@ -24,7 +24,7 @@ class ConfigLoaderTest {
         assertEquals("codex", codex.executable());
         assertEquals(PromptVia.STDIN, codex.promptVia());
         assertEquals(9, codex.capability("implement"));
-        assertEquals(List.of("--sandbox", "workspace-write"), codex.modeArgs("edit"));
+        assertEquals(List.of("-s", "workspace-write"), codex.modeArgs("edit"));
 
         AgentConfig agy = cfg.find("antigravity").orElseThrow();
         assertEquals(PromptVia.ARG, agy.promptVia());
