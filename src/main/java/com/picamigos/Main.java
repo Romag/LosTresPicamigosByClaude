@@ -3,6 +3,8 @@ package com.picamigos;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import com.picamigos.config.AgentsConfig;
+import com.picamigos.config.ConfigLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,8 +41,11 @@ public final class Main {
         log.info("  prompts-file = {}", options.promptsFile());
         log.info("  window-hours = {}", options.windowHours());
 
+        AgentsConfig agents = ConfigLoader.load(options.config());
+        log.info("Loaded {} agents: {}", agents.agentNames().size(), agents.agentNames());
+
         // TODO(M9): build and start the MCP HTTP server here.
-        log.info("M1 scaffold: nothing to serve yet, exiting.");
+        log.info("Scaffold ready: HTTP/MCP server not yet wired, exiting.");
     }
 
     /** Parsed command-line options for the server. */
