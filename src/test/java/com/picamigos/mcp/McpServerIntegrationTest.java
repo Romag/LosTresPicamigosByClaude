@@ -1,6 +1,8 @@
 package com.picamigos.mcp;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -9,8 +11,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.picamigos.test.FakeAgents;
+import com.picamigos.util.Json;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -75,6 +79,28 @@ class McpServerIntegrationTest {
                 .collect(Collectors.joining());
     }
 
+    /** Reads a top-level field from a tool result whose text is a JSON object. */
+    private static String field(CallToolResult result, String name) {
+        try {
+            JsonNode node = Json.MAPPER.readTree(text(result)).get(name);
+            return node == null ? null : node.asText();
+        } catch (Exception e) {
+            throw new RuntimeException("Not JSON: " + text(result), e);
+        }
+    }
+
+    private String pollJobStatus(String jobId, String target, int maxAttempts) throws InterruptedException {
+        String status = "";
+        for (int i = 0; i < maxAttempts; i++) {
+            status = field(client.callTool(new CallToolRequest("get_job", Map.of("job_id", jobId))), "status");
+            if (target.equals(status)) {
+                return status;
+            }
+            Thread.sleep(50);
+        }
+        return status;
+    }
+
     @Test
     void exposesExpectedTools() {
         Set<String> names = client.listTools().tools().stream()
@@ -118,5 +144,32 @@ class McpServerIntegrationTest {
         CallToolResult delegated = client.callTool(new CallToolRequest("delegate",
                 Map.of("agent", "ok", "prompt_name", "greet", "variables", Map.of("who", "mcp"))));
         assertTrue(text(delegated).contains("PROMPT:Say hi to mcp"), text(delegated));
+    }
+
+    @Test
+    void startJobThenGetAndList() throws Exception {
+        CallToolResult started = client.callTool(new CallToolRequest("start_job",
+                Map.of("agent", "ok", "prompt", "async hi", "mode", "ask")));
+        String jobId = field(started, "id");
+        assertNotNull(jobId);
+
+        assertEquals("DONE", pollJobStatus(jobId, "DONE", 100));
+
+        CallToolResult listed = client.callTool(new CallToolRequest("list_jobs", Map.of("agent", "ok")));
+        assertTrue(text(listed).contains(jobId), text(listed));
+    }
+
+    @Test
+    void cancelRunningJob() throws Exception {
+        CallToolResult started = client.callTool(new CallToolRequest("start_job",
+                Map.of("agent", "veryslow", "prompt", "p", "mode", "ask")));
+        String jobId = field(started, "id");
+        assertNotNull(jobId);
+
+        Thread.sleep(800); // let the process come up
+        CallToolResult cancelled = client.callTool(new CallToolRequest("cancel_job", Map.of("job_id", jobId)));
+        assertFalse(Boolean.TRUE.equals(cancelled.isError()), text(cancelled));
+
+        assertEquals("CANCELLED", pollJobStatus(jobId, "CANCELLED", 100));
     }
 }
