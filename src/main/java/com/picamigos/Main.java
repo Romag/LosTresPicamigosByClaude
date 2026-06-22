@@ -5,6 +5,8 @@ import java.nio.file.Paths;
 
 import com.picamigos.config.AgentsConfig;
 import com.picamigos.config.ConfigLoader;
+import com.picamigos.mcp.ServerFactory;
+import com.picamigos.mcp.Services;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +47,25 @@ public final class Main {
         AgentsConfig agents = ConfigLoader.load(options.config());
         log.info("Loaded {} agents: {}", agents.agentNames().size(), agents.agentNames());
 
-        // TODO(M9): build and start the MCP HTTP server here.
-        log.info("Scaffold ready: HTTP/MCP server not yet wired, exiting.");
+        Services services = new Services(agents, options.repo(), options.promptsFile(),
+                options.dangerouslySkipPermissions());
+        ServerFactory server = new ServerFactory(services, options.host(), options.port());
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Shutting down Picamigos MCP server...");
+            server.close();
+            services.close();
+        }, "picamigos-shutdown"));
+
+        try {
+            server.start();
+            log.info("Picamigos MCP server listening on http://{}:{}{}",
+                    options.host(), server.port(), ServerFactory.ENDPOINT);
+            server.join();
+        } catch (Exception e) {
+            log.error("Server error: {}", e.getMessage(), e);
+            services.close();
+            System.exit(1);
+        }
     }
 
     /** Parsed command-line options for the server. */
