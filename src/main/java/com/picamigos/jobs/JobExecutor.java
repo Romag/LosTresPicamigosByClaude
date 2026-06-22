@@ -13,6 +13,7 @@ import com.picamigos.config.AgentsConfig;
 import com.picamigos.exec.AgentLaunchException;
 import com.picamigos.exec.AgentLauncher;
 import com.picamigos.exec.LaunchResult;
+import com.picamigos.usage.UsageLedger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,12 +34,15 @@ public final class JobExecutor implements AutoCloseable {
     private final AgentsConfig config;
     private final AgentLauncher launcher;
     private final JobRegistry registry;
+    private final UsageLedger ledger;
     private final ExecutorService pool;
 
-    public JobExecutor(AgentsConfig config, AgentLauncher launcher, JobRegistry registry, int maxConcurrent) {
+    public JobExecutor(AgentsConfig config, AgentLauncher launcher, JobRegistry registry,
+                       UsageLedger ledger, int maxConcurrent) {
         this.config = Objects.requireNonNull(config);
         this.launcher = Objects.requireNonNull(launcher);
         this.registry = Objects.requireNonNull(registry);
+        this.ledger = Objects.requireNonNull(ledger);
         this.pool = Executors.newFixedThreadPool(Math.max(1, maxConcurrent), namedThreadFactory());
     }
 
@@ -97,6 +101,8 @@ public final class JobExecutor implements AutoCloseable {
         } catch (RuntimeException e) {
             log.error("Job {} failed unexpectedly", job.id(), e);
             job.fail("Unexpected error: " + e);
+        } finally {
+            ledger.record(job.agent(), job.startedAt(), job.durationMillis(), job.status(), job.costUsd());
         }
     }
 

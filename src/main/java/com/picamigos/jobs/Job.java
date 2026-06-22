@@ -59,6 +59,22 @@ public final class Job {
         return status;
     }
 
+    public Instant startedAt() {
+        return startedAt;
+    }
+
+    /** Elapsed time to completion if terminal, else to now. */
+    public long durationMillis() {
+        Instant end = finishedAt != null ? finishedAt : Instant.now();
+        return Duration.between(startedAt, end).toMillis();
+    }
+
+    /** Reported cost in USD if the launcher parsed any, else null. */
+    public Double costUsd() {
+        Usage u = usage;
+        return u == null ? null : u.costUsd();
+    }
+
     /** A launcher observer that captures the process handle and streams partial output into this job. */
     public LaunchObserver observer() {
         return new LaunchObserver() {

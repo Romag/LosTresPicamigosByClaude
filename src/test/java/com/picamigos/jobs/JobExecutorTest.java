@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 
 import com.picamigos.config.AgentsConfig;
 import com.picamigos.exec.AgentLauncher;
 import com.picamigos.test.FakeAgents;
+import com.picamigos.usage.UsageLedger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,9 +28,10 @@ class JobExecutorTest {
     void setUp() {
         AgentsConfig config = FakeAgents.config();
         registry = new JobRegistry();
+        UsageLedger ledger = new UsageLedger(config.windowHours(), Clock.systemUTC());
         // Use a stable (non-temp) working dir: these tests kill processes, and a killed child's cwd
         // handle can briefly linger on Windows, which would make @TempDir cleanup fail.
-        executor = new JobExecutor(config, new AgentLauncher(Path.of(".").toAbsolutePath()), registry, 4);
+        executor = new JobExecutor(config, new AgentLauncher(Path.of(".").toAbsolutePath()), registry, ledger, 4);
     }
 
     @AfterEach
