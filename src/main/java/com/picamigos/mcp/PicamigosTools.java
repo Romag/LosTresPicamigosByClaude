@@ -12,6 +12,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.picamigos.config.AgentConfig;
 import com.picamigos.exec.ExecutableResolver;
 import com.picamigos.jobs.Job;
+import com.picamigos.jobs.JobStatus;
 import com.picamigos.prompts.PromptTemplate;
 import com.picamigos.util.Json;
 import io.modelcontextprotocol.json.McpJsonMapper;
@@ -39,13 +40,17 @@ public final class PicamigosTools {
         this.jsonMapper = jsonMapper;
     }
 
-    /** All tool specifications exposed in this milestone. */
+    /** All tool specifications exposed by the server. */
     public List<SyncToolSpecification> all() {
         return List.of(
                 listAgents(),
                 agentStatus(),
                 recommendAgent(),
                 delegate(),
+                startJob(),
+                getJob(),
+                listJobs(),
+                cancelJob(),
                 savePrompt(),
                 getPrompt(),
                 listPrompts(),
@@ -109,38 +114,104 @@ public final class PicamigosTools {
                 });
     }
 
+    /** Shared input schema for delegate / start_job. */
+    private static final String DELEGATION_SCHEMA = "{\"type\":\"object\",\"properties\":{"
+            + "\"agent\":{\"type\":\"string\"},"
+            + "\"task_type\":{\"type\":\"string\"},"
+            + "\"prompt\":{\"type\":\"string\"},"
+            + "\"prompt_name\":{\"type\":\"string\"},"
+            + "\"variables\":{\"type\":\"object\"},"
+            + "\"mode\":{\"type\":\"string\",\"enum\":[\"ask\",\"edit\"]},"
+            + "\"timeout_seconds\":{\"type\":\"integer\"}}}";
+
+    private static final String JOB_ID_SCHEMA =
+            "{\"type\":\"object\",\"properties\":{\"job_id\":{\"type\":\"string\"}},\"required\":[\"job_id\"]}";
+
     private SyncToolSpecification delegate() {
         return tool("delegate",
                 "Delegate a task to an agent and block until it finishes. Provide either 'agent' or "
                         + "'task_type' (auto-routed), and either 'prompt' or 'prompt_name' (+ 'variables').",
+                DELEGATION_SCHEMA,
+                (exchange, request) -> runDelegation(request.arguments(), true));
+    }
+
+    private SyncToolSpecification startJob() {
+        return tool("start_job",
+                "Start a delegation asynchronously and return a job id immediately. Poll with get_job. "
+                        + "Call repeatedly to fan out work (e.g. parallel reviews) to multiple agents.",
+                DELEGATION_SCHEMA,
+                (exchange, request) -> runDelegation(request.arguments(), false));
+    }
+
+    private SyncToolSpecification getJob() {
+        return tool("get_job",
+                "Get a job's status and output (partial while running) by id.",
+                JOB_ID_SCHEMA,
+                (exchange, request) -> {
+                    String id = str(request.arguments(), "job_id");
+                    return services.registry.get(id)
+                            .map(j -> json(j.view(VIEW_CHARS)))
+                            .orElseGet(() -> err("No job: " + id));
+                });
+    }
+
+    private SyncToolSpecification listJobs() {
+        return tool("list_jobs",
+                "List jobs (newest first), optionally filtered by agent and/or status.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"agent\":{\"type\":\"string\"},"
-                        + "\"task_type\":{\"type\":\"string\"},"
-                        + "\"prompt\":{\"type\":\"string\"},"
-                        + "\"prompt_name\":{\"type\":\"string\"},"
-                        + "\"variables\":{\"type\":\"object\"},"
-                        + "\"mode\":{\"type\":\"string\",\"enum\":[\"ask\",\"edit\"]},"
-                        + "\"timeout_seconds\":{\"type\":\"integer\"}}}",
+                        + "\"status\":{\"type\":\"string\",\"enum\":[\"running\",\"done\",\"failed\","
+                        + "\"timeout\",\"rate_limited\",\"cancelled\"]}}}",
                 (exchange, request) -> {
                     Map<String, Object> args = request.arguments();
-                    Optional<String> agent = resolveAgent(args);
-                    if (agent.isEmpty()) {
-                        return err("Provide 'agent', or a 'task_type' with at least one available agent.");
+                    String agent = str(args, "agent");
+                    String agentFilter = (agent == null || agent.isBlank())
+                            ? null : services.config.resolveName(agent).orElse(agent);
+                    String statusStr = str(args, "status");
+                    JobStatus statusFilter = null;
+                    if (statusStr != null && !statusStr.isBlank()) {
+                        try {
+                            statusFilter = JobStatus.valueOf(statusStr.trim().toUpperCase());
+                        } catch (IllegalArgumentException e) {
+                            return err("Invalid status: " + statusStr);
+                        }
                     }
-                    String prompt;
-                    try {
-                        prompt = resolvePrompt(args);
-                    } catch (IllegalArgumentException | NoSuchElementException e) {
-                        return err(e.getMessage());
-                    }
-                    String mode = str(args, "mode");
-                    if (mode == null || mode.isBlank()) {
-                        mode = services.skipPermissions ? "edit" : "ask";
-                    }
-                    Integer timeout = intOrNull(args, "timeout_seconds");
-                    Job job = services.executor.startAndWait(agent.get(), prompt, mode, timeout);
-                    return json(job.view(VIEW_CHARS));
+                    return json(services.registry.list(agentFilter, statusFilter, VIEW_CHARS));
                 });
+    }
+
+    private SyncToolSpecification cancelJob() {
+        return tool("cancel_job",
+                "Cancel a running job by id (force-kills the agent process).",
+                JOB_ID_SCHEMA,
+                (exchange, request) -> {
+                    String id = str(request.arguments(), "job_id");
+                    return services.executor.cancel(id)
+                            ? ok("Cancelling job: " + id)
+                            : err("Job not found or already finished: " + id);
+                });
+    }
+
+    private CallToolResult runDelegation(Map<String, Object> args, boolean wait) {
+        Optional<String> agent = resolveAgent(args);
+        if (agent.isEmpty()) {
+            return err("Provide 'agent', or a 'task_type' with at least one available agent.");
+        }
+        String prompt;
+        try {
+            prompt = resolvePrompt(args);
+        } catch (IllegalArgumentException | NoSuchElementException e) {
+            return err(e.getMessage());
+        }
+        String mode = str(args, "mode");
+        if (mode == null || mode.isBlank()) {
+            mode = services.skipPermissions ? "edit" : "ask";
+        }
+        Integer timeout = intOrNull(args, "timeout_seconds");
+        Job job = wait
+                ? services.executor.startAndWait(agent.get(), prompt, mode, timeout)
+                : services.executor.start(agent.get(), prompt, mode, timeout);
+        return json(job.view(VIEW_CHARS));
     }
 
     private SyncToolSpecification savePrompt() {
