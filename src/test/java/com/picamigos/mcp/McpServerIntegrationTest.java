@@ -172,4 +172,17 @@ class McpServerIntegrationTest {
 
         assertEquals("CANCELLED", pollJobStatus(jobId, "CANCELLED", 100));
     }
+
+    @Test
+    void noteBoardSharedAcrossCalls() {
+        client.callTool(new CallToolRequest("post_note",
+                Map.of("thread", "review/1", "author", "codex", "text", "LGTM with nits")));
+        client.callTool(new CallToolRequest("post_note",
+                Map.of("thread", "review/1", "author", "claude", "text", "Found a bug")));
+
+        CallToolResult notes = client.callTool(new CallToolRequest("get_notes", Map.of("thread", "review/1")));
+        String t = text(notes);
+        assertTrue(t.contains("LGTM with nits"), t);
+        assertTrue(t.contains("Found a bug"), t);
+    }
 }
