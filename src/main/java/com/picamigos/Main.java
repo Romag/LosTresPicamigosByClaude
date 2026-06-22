@@ -40,6 +40,7 @@ public final class Main {
         log.info("  config       = {}", options.config() == null ? "(bundled defaults)" : options.config());
         log.info("  prompts-file = {}", options.promptsFile());
         log.info("  window-hours = {}", options.windowHours());
+        log.info("  dangerously-skip-permissions = {}", options.dangerouslySkipPermissions());
 
         AgentsConfig agents = ConfigLoader.load(options.config());
         log.info("Loaded {} agents: {}", agents.agentNames().size(), agents.agentNames());
@@ -55,7 +56,8 @@ public final class Main {
             Path repo,
             Path config,
             Path promptsFile,
-            int windowHours) {
+            int windowHours,
+            boolean dangerouslySkipPermissions) {
 
         static final String DEFAULT_HOST = "127.0.0.1";
         static final int DEFAULT_PORT = 8765;
@@ -68,6 +70,7 @@ public final class Main {
             Path config = null;
             Path promptsFile = null;
             int windowHours = DEFAULT_WINDOW_HOURS;
+            boolean dangerouslySkipPermissions = false;
 
             for (int i = 0; i < args.length; i++) {
                 String arg = args[i];
@@ -80,6 +83,7 @@ public final class Main {
                             promptsFile = Paths.get(requireValue(args, ++i, "--prompts-file")).toAbsolutePath();
                     case "--window-hours" ->
                             windowHours = parseIntValue(requireValue(args, ++i, "--window-hours"), "--window-hours");
+                    case "--dangerously-skip-permissions" -> dangerouslySkipPermissions = true;
                     default -> throw new IllegalArgumentException("Unknown argument: " + arg);
                 }
             }
@@ -87,7 +91,7 @@ public final class Main {
             if (promptsFile == null) {
                 promptsFile = repo.resolve(".picamigos").resolve("prompts.json");
             }
-            return new ServerOptions(host, port, repo, config, promptsFile, windowHours);
+            return new ServerOptions(host, port, repo, config, promptsFile, windowHours, dangerouslySkipPermissions);
         }
 
         private static String requireValue(String[] args, int index, String flag) {
@@ -114,6 +118,7 @@ public final class Main {
                      --config <file>        agent config override (default: bundled agents.default.json)
                      --prompts-file <file>  prompt library JSON (default: <repo>/.picamigos/prompts.json)
                      --window-hours <n>     usage window length in hours (default 5)
+                     --dangerously-skip-permissions skip user confirmation before running agent tools
                    """;
         }
     }
