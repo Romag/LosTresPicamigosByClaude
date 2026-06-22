@@ -1,0 +1,56 @@
+{
+  "windowHours": 5,
+  "agents": {
+    "codex": {
+      "displayName": "Codex (ChatGPT)",
+      "executable": "codex",
+      "model": "gpt",
+      "aliases": ["chatgpt"],
+      "baseArgs": ["exec", "-", "--json"],
+      "promptVia": "stdin",
+      "modes": {
+        "ask": ["--sandbox", "read-only"],
+        "edit": ["--sandbox", "workspace-write"]
+      },
+      "capabilities": { "implement": 9, "reason": 9, "plan": 8, "review": 8, "test": 8, "docs": 7 },
+      "usageParse": "codex-jsonl",
+      "limitPatterns": ["(?i)usage limit reached", "(?i)rate.?limit"],
+      "timeoutSeconds": 900,
+      "maxOutputChars": 200000
+    },
+    "claude": {
+      "displayName": "Claude Code",
+      "executable": "claude",
+      "model": "claude",
+      "aliases": [],
+      "baseArgs": ["-p", "--output-format", "json"],
+      "promptVia": "stdin",
+      "modes": {
+        "ask": ["--allowedTools", "Read,Grep,Glob"],
+        "edit": ["--permission-mode", "acceptEdits"]
+      },
+      "capabilities": { "implement": 9, "reason": 9, "plan": 9, "review": 9, "test": 8, "docs": 8 },
+      "usageParse": "claude-json",
+      "limitPatterns": ["(?i)usage limit", "(?i)rate limit", "(?i)5-hour limit"],
+      "timeoutSeconds": 900,
+      "maxOutputChars": 200000
+    },
+    "antigravity": {
+      "displayName": "Antigravity (Gemini 3.5 Flash)",
+      "executable": "agy",
+      "model": "gemini-3.5-flash",
+      "aliases": ["gemini", "agy"],
+      "baseArgs": ["-p"],
+      "promptVia": "arg",
+      "modes": {
+        "ask": ["--headless", "--approve", "none"],
+        "edit": ["--headless", "--approve", "all"]
+      },
+      "capabilities": { "implement": 5, "reason": 6, "plan": 6, "review": 7, "test": 6, "docs": 7 },
+      "usageParse": "none",
+      "limitPatterns": ["(?i)quota", "(?i)rate limit", "(?i)resource exhausted"],
+      "timeoutSeconds": 900,
+      "maxOutputChars": 200000
+    }
+  }
+}
