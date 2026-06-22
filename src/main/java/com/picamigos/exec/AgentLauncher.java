@@ -46,6 +46,9 @@ public final class AgentLauncher {
     /** Grace period to let a force-killed process actually die. */
     private static final int KILL_GRACE_SECONDS = 5;
 
+    /** Max time to wait for output pump threads (kept short so kills return promptly on Windows). */
+    private static final long PUMP_JOIN_MILLIS = 1500;
+
     private final Path repoDir;
 
     public AgentLauncher(Path repoDir) {
@@ -120,14 +123,13 @@ public final class AgentLauncher {
             outcome = null; // classified below after output is collected
         }
 
-        // On normal completion the pumps EOF quickly, so we join to capture all output. After a
-        // force-kill the blocked reads do NOT unblock promptly on Windows (closing or joining them
-        // would block ~10s); the output is already captured in the thread-safe buffers, so we skip
-        // the join and let the cheap leaked virtual thread exit on its own once the pipe finally EOFs.
-        if (finished) {
-            join(outThread, TimeUnit.SECONDS.toMillis(KILL_GRACE_SECONDS));
-            join(errThread, TimeUnit.SECONDS.toMillis(KILL_GRACE_SECONDS));
-        }
+        // Briefly join the pumps. On normal completion they EOF within milliseconds, so this captures
+        // all output. After ANY force-kill (timeout OR external cancel) the blocked reads may not
+        // unblock promptly on Windows, so we cap the wait and proceed — the output is already captured
+        // live in the thread-safe buffers, and a still-blocked pump is a cheap virtual thread that
+        // exits on its own once the pipe finally EOFs.
+        join(outThread, PUMP_JOIN_MILLIS);
+        join(errThread, PUMP_JOIN_MILLIS);
 
         long durationMillis = (System.nanoTime() - startNanos) / 1_000_000;
         String cleanStdout = AnsiStripper.strip(outPump.text());
