@@ -3,6 +3,7 @@ package com.picamigos.mcp;
 import java.nio.file.Path;
 import java.time.Clock;
 
+import com.picamigos.board.NoteBoard;
 import com.picamigos.config.AgentsConfig;
 import com.picamigos.exec.AgentLauncher;
 import com.picamigos.jobs.JobExecutor;
@@ -28,6 +29,7 @@ public final class Services implements AutoCloseable {
     public final JobExecutor executor;
     public final AgentRouter router;
     public final PromptStore prompts;
+    public final NoteBoard board;
     public final boolean skipPermissions;
 
     public Services(AgentsConfig config, Path repo, Path promptsFile, boolean skipPermissions) {
@@ -38,6 +40,7 @@ public final class Services implements AutoCloseable {
         this.executor = new JobExecutor(config, new AgentLauncher(repo), registry, ledger, DEFAULT_MAX_CONCURRENT);
         this.router = new AgentRouter(config, ledger);
         this.prompts = new PromptStore(promptsFile);
+        this.board = new NoteBoard();
     }
 
     @Override

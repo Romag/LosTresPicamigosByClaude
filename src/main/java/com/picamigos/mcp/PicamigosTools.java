@@ -54,7 +54,9 @@ public final class PicamigosTools {
                 savePrompt(),
                 getPrompt(),
                 listPrompts(),
-                deletePrompt());
+                deletePrompt(),
+                postNote(),
+                getNotes());
     }
 
     // ------------------------------------------------------------------ tools
@@ -265,6 +267,38 @@ public final class PicamigosTools {
                     return services.prompts.delete(name)
                             ? ok("Deleted prompt: " + name)
                             : err("No prompt named: " + name);
+                });
+    }
+
+    private SyncToolSpecification postNote() {
+        return tool("post_note",
+                "Post a comment to a shared thread visible to all agents (e.g. review feedback).",
+                "{\"type\":\"object\",\"properties\":{"
+                        + "\"thread\":{\"type\":\"string\"},"
+                        + "\"author\":{\"type\":\"string\"},"
+                        + "\"text\":{\"type\":\"string\"}},"
+                        + "\"required\":[\"thread\",\"author\",\"text\"]}",
+                (exchange, request) -> {
+                    Map<String, Object> args = request.arguments();
+                    String thread = str(args, "thread");
+                    if (thread == null || thread.isBlank()) {
+                        return err("'thread' is required");
+                    }
+                    return json(services.board.post(thread, str(args, "author"), str(args, "text")));
+                });
+    }
+
+    private SyncToolSpecification getNotes() {
+        return tool("get_notes",
+                "Get all comments in a shared thread, in posting order.",
+                "{\"type\":\"object\",\"properties\":{\"thread\":{\"type\":\"string\"}},"
+                        + "\"required\":[\"thread\"]}",
+                (exchange, request) -> {
+                    String thread = str(request.arguments(), "thread");
+                    if (thread == null || thread.isBlank()) {
+                        return err("'thread' is required");
+                    }
+                    return json(services.board.get(thread));
                 });
     }
 
