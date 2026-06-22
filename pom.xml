@@ -75,6 +75,12 @@
       <artifactId>jackson-databind</artifactId>
       <version>${jackson.version}</version>
     </dependency>
+    <!-- java.time support (Instant in job/usage snapshots). -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
 
     <!-- Logging: SLF4J + simple binding, configured to write to stderr only. -->
     <dependency>
