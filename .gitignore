@@ -1,0 +1,21 @@
+# Build output
+target/
+*.class
+
+# Logs
+*.log
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# Runtime state (in-memory server; prompt library lives here too)
+.picamigos/
+
+# Stray local Maven distributions (never commit a downloaded Maven)
+apache-maven-*/
+
+# OS cruft
+.DS_Store
+Thumbs.db
