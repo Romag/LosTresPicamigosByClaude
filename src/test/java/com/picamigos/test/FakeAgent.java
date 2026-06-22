@@ -54,12 +54,9 @@ public final class FakeAgent {
                 ? (positionals.isEmpty() ? "" : positionals.get(positionals.size() - 1))
                 : stdin;
 
-        if (sleepMs > 0) {
-            Thread.sleep(sleepMs);
-        }
-
         String esc = String.valueOf((char) 27); // ESC, built without a source-level control char
 
+        // Print output BEFORE sleeping so partial output is observable while the run is in progress.
         if (bytes >= 0) {
             System.out.print("x".repeat(bytes));
         } else {
@@ -68,6 +65,11 @@ public final class FakeAgent {
                 body = esc + "[31m" + body + esc + "[0m";
             }
             System.out.println(body);
+        }
+        System.out.flush();
+
+        if (sleepMs > 0) {
+            Thread.sleep(sleepMs);
         }
 
         if (stderrText != null) {
