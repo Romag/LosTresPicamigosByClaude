@@ -28,7 +28,7 @@ class MainTest {
     @Test
     void parseAllOptions() {
         Main.ServerOptions options = Main.ServerOptions.parse(new String[]{
-                "--host", "0.0.0.0",
+                "--host", "127.0.0.1",
                 "--port", "9000",
                 "--repo", "my-repo",
                 "--config", "my-config.json",
@@ -36,7 +36,7 @@ class MainTest {
                 "--window-hours", "10",
                 "--dangerously-skip-permissions"
         });
-        assertEquals("0.0.0.0", options.host());
+        assertEquals("127.0.0.1", options.host());
         assertEquals(9000, options.port());
         assertEquals(Path.of("my-repo").toAbsolutePath(), options.repo());
         assertEquals(Path.of("my-config.json").toAbsolutePath(), options.config());
@@ -50,5 +50,18 @@ class MainTest {
         assertThrows(IllegalArgumentException.class, () ->
                 Main.ServerOptions.parse(new String[]{"--unknown-flag"})
         );
+    }
+
+    @Test
+    void parseRejectsNonLoopbackHost() {
+        assertThrows(IllegalArgumentException.class, () ->
+                Main.ServerOptions.parse(new String[]{"--host", "0.0.0.0"})
+        );
+    }
+
+    @Test
+    void windowHoursSetFlagTracksExplicitValue() {
+        assertFalse(Main.ServerOptions.parse(new String[]{}).windowHoursSet());
+        assertTrue(Main.ServerOptions.parse(new String[]{"--window-hours", "8"}).windowHoursSet());
     }
 }

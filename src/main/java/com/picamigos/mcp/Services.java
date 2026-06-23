@@ -32,11 +32,11 @@ public final class Services implements AutoCloseable {
     public final NoteBoard board;
     public final boolean skipPermissions;
 
-    public Services(AgentsConfig config, Path repo, Path promptsFile, boolean skipPermissions) {
+    public Services(AgentsConfig config, Path repo, Path promptsFile, int windowHours, boolean skipPermissions) {
         this.config = config;
         this.skipPermissions = skipPermissions;
         this.registry = new JobRegistry();
-        this.ledger = new UsageLedger(config.windowHours(), Clock.systemUTC());
+        this.ledger = new UsageLedger(windowHours, Clock.systemUTC());
         this.executor = new JobExecutor(config, new AgentLauncher(repo), registry, ledger, DEFAULT_MAX_CONCURRENT);
         this.router = new AgentRouter(config, ledger);
         this.prompts = new PromptStore(promptsFile);
