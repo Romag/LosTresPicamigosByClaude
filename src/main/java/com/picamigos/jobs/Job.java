@@ -129,11 +129,18 @@ public final class Job {
 
     /** Requests cancellation: force-kills the running process if any. */
     void requestCancel() {
-        cancelRequested = true;
+        synchronized (this) {
+            cancelRequested = true;
+        }
         Process p = process.get();
         if (p != null) {
             p.destroyForcibly();
         }
+    }
+
+    /** Whether cancellation has been requested (checked before a queued job is launched). */
+    public boolean isCancelRequested() {
+        return cancelRequested;
     }
 
     /** Waits up to {@code timeout} for the job to reach a terminal state. */
@@ -156,9 +163,10 @@ public final class Job {
             }
         }
         OutputTruncator.Result truncated = OutputTruncator.truncate(rawOutput, maxOutputChars);
+        String stderrTail = result != null ? result.stderrTail() : "";
         Instant end = fin != null ? fin : Instant.now();
         long durationMillis = Duration.between(startedAt, end).toMillis();
-        return new JobView(id, agent, mode, st, truncated.text(), truncated.truncated(),
+        return new JobView(id, agent, mode, st, truncated.text(), truncated.truncated(), stderrTail,
                 exitCode, startedAt, lastActivityAt, fin, durationMillis);
     }
 

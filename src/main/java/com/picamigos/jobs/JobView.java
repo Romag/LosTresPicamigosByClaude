@@ -11,6 +11,7 @@ import java.time.Instant;
  * @param status         current status
  * @param output         output so far (partial while running, final once terminal), length-capped
  * @param truncated      whether {@code output} was truncated
+ * @param stderrTail     tail of the agent's stderr (useful when {@code output} is empty on failure)
  * @param exitCode       process exit code, or null if not finished / never started
  * @param startedAt      when the job started
  * @param lastActivityAt timestamp of the most recent output activity (liveness signal)
@@ -24,6 +25,7 @@ public record JobView(
         JobStatus status,
         String output,
         boolean truncated,
+        String stderrTail,
         Integer exitCode,
         Instant startedAt,
         Instant lastActivityAt,

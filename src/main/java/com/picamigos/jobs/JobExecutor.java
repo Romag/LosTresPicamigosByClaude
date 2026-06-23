@@ -93,6 +93,10 @@ public final class JobExecutor implements AutoCloseable {
 
     private void runJob(Job job, AgentConfig agent, String prompt, String mode, Integer timeoutOverride) {
         try {
+            if (job.isCancelRequested()) {
+                job.fail("Cancelled before launch"); // maps to CANCELLED; never spawns a process
+                return;
+            }
             LaunchResult result = launcher.run(agent, prompt, mode, timeoutOverride, job.observer());
             job.complete(result);
         } catch (AgentLaunchException e) {
