@@ -23,12 +23,23 @@ raise its scores) — no rebuild needed.
 ## Routing rules
 
 1. Rank candidate agents by their score for the requested `task_type` (descending).
-2. Exclude agents that are **not installed** (executable not on `PATH`).
-3. Exclude agents that are currently **rate-limited** (see budget below).
-4. Break ties by **most remaining budget** (least active time used in the window).
-5. For `task_type = "review"`, return **all** available agents (so you can fan out reviews to everyone).
+2. Exclude agents that are **disabled** (`"enabled": false` in config — see below).
+3. Exclude agents that are **not installed** (executable not on `PATH`).
+4. Exclude agents that are currently **rate-limited** (see budget below).
+5. Break ties by **most remaining budget** (least active time used in the window).
+6. For `task_type = "review"`, return **all** eligible agents (so you can fan out reviews to everyone).
 
-An explicit `agent` always overrides routing.
+An explicit `agent` always overrides routing — even a disabled agent runs when named directly.
+
+## Enabling / disabling an agent
+
+Each agent has an `"enabled"` flag (default `true`). When `false`, the agent is **excluded from
+auto-routing and `recommend_agent`**, but an explicit `delegate(agent="…")` still runs it.
+
+`antigravity` ships **`"enabled": false`** because it can't capture output in non-TTY mode on Windows
+(see [cli-notes.md](cli-notes.md)) — this prevents it from being silently auto-routed and returning empty
+reviews. On platforms where `agy` works (or once a PTY bridge exists), set `"enabled": true` via a
+`--config` override. `list_agents` reports each agent's `available` (installed) and `enabled` flags.
 
 ## Budget tracking
 

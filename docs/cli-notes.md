@@ -40,6 +40,9 @@ them in a `--config` override without recompiling.
 - **Workaround (future / out of scope for v1):** run agy under a pseudo-console (Windows ConPTY / a PTY
   bridge such as the community "agy headless bridge"). The agent stays configured so it works as soon as a
   PTY layer or an upstream agy fix is in place.
+- **Default:** antigravity ships with `"enabled": false` so it is **not auto-routed** (which would yield
+  empty reviews); an explicit `delegate(agent="antigravity")` still runs it. Set `"enabled": true` via a
+  `--config` override on platforms where agy captures output. See [routing.md](routing.md).
 
 ## Usage / budget signals
 - No CLI reliably reports remaining 5-hour budget in headless mode (claude `usage --json` unshipped; codex

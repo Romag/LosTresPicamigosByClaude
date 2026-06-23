@@ -21,11 +21,15 @@ class AgentRouterTest {
 
     /** A config backed by an installed executable ("java") with the given capability scores. */
     private static AgentConfig agent(int implement, int review, String executable) {
+        return agent(implement, review, executable, true);
+    }
+
+    private static AgentConfig agent(int implement, int review, String executable, boolean enabled) {
         return new AgentConfig(
                 "Agent-" + executable, executable, "m",
                 List.of(), List.of(), PromptVia.STDIN,
                 Map.of(), Map.of("implement", implement, "review", review),
-                "none", List.of(), 30, 200_000);
+                "none", List.of(), 30, 200_000, enabled);
     }
 
     private static AgentsConfig config(Map<String, AgentConfig> agents) {
@@ -57,6 +61,16 @@ class AgentRouterTest {
         List<AgentRecommendation> recs = router.recommend("implement", 5);
         assertFalse(names(recs).contains("ghost"));
         assertEquals(List.of("alpha"), names(recs));
+    }
+
+    @Test
+    void excludesDisabledAgents() {
+        Map<String, AgentConfig> agents = new LinkedHashMap<>();
+        agents.put("alpha", agent(9, 5, "java", true));
+        agents.put("bravo", agent(10, 9, "java", false)); // higher score but disabled
+        AgentRouter router = new AgentRouter(config(agents), new UsageLedger(5, Clock.systemUTC()));
+
+        assertEquals(List.of("alpha"), names(router.recommend("implement", 5)));
     }
 
     @Test

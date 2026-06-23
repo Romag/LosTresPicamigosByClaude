@@ -16,7 +16,8 @@
       "usageParse": "none",
       "limitPatterns": ["(?i)usage limit reached", "(?i)rate.?limit"],
       "timeoutSeconds": 900,
-      "maxOutputChars": 200000
+      "maxOutputChars": 200000,
+      "enabled": true
     },
     "claude": {
       "displayName": "Claude Code",
@@ -33,7 +34,8 @@
       "usageParse": "none",
       "limitPatterns": ["(?i)usage limit", "(?i)rate limit", "(?i)5-hour limit"],
       "timeoutSeconds": 900,
-      "maxOutputChars": 200000
+      "maxOutputChars": 200000,
+      "enabled": true
     },
     "antigravity": {
       "displayName": "Antigravity (Gemini 3.5 Flash)",
@@ -50,7 +52,8 @@
       "usageParse": "none",
       "limitPatterns": ["(?i)quota", "(?i)rate limit", "(?i)resource exhausted"],
       "timeoutSeconds": 900,
-      "maxOutputChars": 200000
+      "maxOutputChars": 200000,
+      "enabled": false
     }
   }
 }

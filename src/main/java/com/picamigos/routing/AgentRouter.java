@@ -51,6 +51,9 @@ public final class AgentRouter {
         for (Map.Entry<String, AgentConfig> entry : config.agents().entrySet()) {
             String name = entry.getKey();
             AgentConfig cfg = entry.getValue();
+            if (!cfg.enabled()) {
+                continue; // disabled for auto-routing (explicit delegate still works)
+            }
             if (ExecutableResolver.resolve(cfg.executable()).isEmpty()) {
                 continue; // not installed on this machine
             }

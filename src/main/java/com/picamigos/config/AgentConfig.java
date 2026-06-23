@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * @param limitPatterns  regexes (matched against output) that indicate a usage/rate limit was hit
  * @param timeoutSeconds default per-run timeout in seconds
  * @param maxOutputChars cap on captured output characters before truncation
+ * @param enabled        whether the agent may be auto-routed to (set false for agents that are
+ *                       installed but can't usefully run here, e.g. agy in non-TTY mode on Windows)
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AgentConfig(
@@ -37,7 +39,8 @@ public record AgentConfig(
         String usageParse,
         List<String> limitPatterns,
         int timeoutSeconds,
-        int maxOutputChars) {
+        int maxOutputChars,
+        boolean enabled) {
 
     /** Normalizes null collections to empty immutable ones and copies collections defensively. */
     public AgentConfig {

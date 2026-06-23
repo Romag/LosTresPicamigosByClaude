@@ -47,7 +47,7 @@ class AgentLauncherTest {
                 List.of(), baseArgs, via,
                 Map.of("ask", List.of(), "edit", List.of()),
                 Map.of(), "none", limitPatterns,
-                timeoutSeconds, maxOutputChars);
+                timeoutSeconds, maxOutputChars, true);
     }
 
     @Test
@@ -153,7 +153,7 @@ class AgentLauncherTest {
         AgentConfig agent = new AgentConfig(
                 "Ghost", "definitely-not-a-real-binary-xyz", "ghost",
                 List.of(), List.of(), PromptVia.STDIN,
-                Map.of(), Map.of(), "none", List.of(), 30, 200_000);
+                Map.of(), Map.of(), "none", List.of(), 30, 200_000, true);
 
         assertThrows(AgentLaunchException.class,
                 () -> launcher().run(agent, "p", "ask", null, null));

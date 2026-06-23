@@ -14,6 +14,7 @@ import com.picamigos.exec.ExecutableResolver;
 import com.picamigos.jobs.Job;
 import com.picamigos.jobs.JobStatus;
 import com.picamigos.prompts.PromptTemplate;
+import com.picamigos.routing.AgentRecommendation;
 import com.picamigos.util.Json;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
@@ -70,7 +71,8 @@ public final class PicamigosTools {
                     for (Map.Entry<String, AgentConfig> e : services.config.agents().entrySet()) {
                         AgentConfig c = e.getValue();
                         boolean available = ExecutableResolver.resolve(c.executable()).isPresent();
-                        infos.add(new AgentInfo(e.getKey(), c.displayName(), available, c.model(), c.capabilities()));
+                        infos.add(new AgentInfo(e.getKey(), c.displayName(), available, c.enabled(),
+                                c.model(), c.capabilities()));
                     }
                     return json(infos);
                 });
@@ -151,6 +153,9 @@ public final class PicamigosTools {
                 JOB_ID_SCHEMA,
                 (exchange, request) -> {
                     String id = str(request.arguments(), "job_id");
+                    if (id == null || id.isBlank()) {
+                        return err("'job_id' is required");
+                    }
                     return services.registry.get(id)
                             .map(j -> json(j.view(VIEW_CHARS)))
                             .orElseGet(() -> err("No job: " + id));
@@ -188,6 +193,9 @@ public final class PicamigosTools {
                 JOB_ID_SCHEMA,
                 (exchange, request) -> {
                     String id = str(request.arguments(), "job_id");
+                    if (id == null || id.isBlank()) {
+                        return err("'job_id' is required");
+                    }
                     return services.executor.cancel(id)
                             ? ok("Cancelling job: " + id)
                             : err("Job not found or already finished: " + id);
@@ -195,10 +203,27 @@ public final class PicamigosTools {
     }
 
     private CallToolResult runDelegation(Map<String, Object> args, boolean wait) {
-        Optional<String> agent = resolveAgent(args);
-        if (agent.isEmpty()) {
-            return err("Provide 'agent', or a 'task_type' with at least one available agent.");
+        String agentArg = str(args, "agent");
+        String taskType = str(args, "task_type");
+        String agent;
+        if (agentArg != null && !agentArg.isBlank()) {
+            Optional<String> canonical = services.config.resolveName(agentArg);
+            if (canonical.isEmpty()) {
+                return err("Unknown agent: " + agentArg);
+            }
+            agent = canonical.get(); // canonicalize so jobs/usage key off the canonical name
+        } else if (taskType != null && !taskType.isBlank()) {
+            Optional<AgentRecommendation> rec = services.router.recommendOne(taskType);
+            if (rec.isEmpty()) {
+                return err("No agent available for task_type '" + taskType
+                        + "' (candidates may be disabled, rate-limited, or not installed). "
+                        + "Check agent_status, or pass an explicit 'agent'.");
+            }
+            agent = rec.get().agent();
+        } else {
+            return err("Provide 'agent', or 'task_type' for auto-routing.");
         }
+
         String prompt;
         try {
             prompt = resolvePrompt(args);
@@ -211,8 +236,8 @@ public final class PicamigosTools {
         }
         Integer timeout = intOrNull(args, "timeout_seconds");
         Job job = wait
-                ? services.executor.startAndWait(agent.get(), prompt, mode, timeout)
-                : services.executor.start(agent.get(), prompt, mode, timeout);
+                ? services.executor.startAndWait(agent, prompt, mode, timeout)
+                : services.executor.start(agent, prompt, mode, timeout);
         return json(job.view(VIEW_CHARS));
     }
 
@@ -303,18 +328,6 @@ public final class PicamigosTools {
     }
 
     // ------------------------------------------------------------------ helpers
-
-    private Optional<String> resolveAgent(Map<String, Object> args) {
-        String agent = str(args, "agent");
-        if (agent != null && !agent.isBlank()) {
-            return services.config.find(agent).isPresent() ? Optional.of(agent) : Optional.empty();
-        }
-        String taskType = str(args, "task_type");
-        if (taskType != null && !taskType.isBlank()) {
-            return services.router.recommendOne(taskType).map(r -> r.agent());
-        }
-        return Optional.empty();
-    }
 
     private String resolvePrompt(Map<String, Object> args) {
         String prompt = str(args, "prompt");

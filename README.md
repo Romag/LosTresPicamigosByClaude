@@ -92,7 +92,8 @@ Agent commands, modes, capability scores, and limit-detection patterns live in
 
 - **Antigravity (`agy`) returns empty output in non-TTY mode on Windows** — its TUI renderer writes to the
   console, bypassing the captured pipe (even `agy models` yields nothing over a pipe). Codex and Claude work
-  fully. Capturing agy would need a pseudo-console (ConPTY) bridge — out of scope for v1. See
+  fully. It therefore ships **`"enabled": false`** (excluded from auto-routing; explicit `delegate` still
+  runs it). Capturing agy would need a pseudo-console (ConPTY) bridge — out of scope for v1. See
   [docs/cli-notes.md](docs/cli-notes.md).
 - State (jobs, usage ledger, note board) is **in-memory** and lost on restart. Only the prompt library persists.
 - No authentication and loopback-only by design (no tokens, no remote exposure).
