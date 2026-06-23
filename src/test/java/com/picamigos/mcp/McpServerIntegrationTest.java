@@ -46,7 +46,7 @@ class McpServerIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         services = new Services(FakeAgents.config(), Path.of(".").toAbsolutePath(),
-                tmp.resolve("prompts.json"), false);
+                tmp.resolve("prompts.json"), 5, false);
         server = new ServerFactory(services, "127.0.0.1", 0);
         server.start();
 
@@ -184,5 +184,29 @@ class McpServerIntegrationTest {
         String t = text(notes);
         assertTrue(t.contains("LGTM with nits"), t);
         assertTrue(t.contains("Found a bug"), t);
+    }
+
+    @Test
+    void rateLimitedJobIsClassifiedAndExposesStderrTail() {
+        CallToolResult r = client.callTool(new CallToolRequest("delegate",
+                Map.of("agent", "limit", "prompt", "x", "mode", "ask")));
+        String out = text(r);
+        assertTrue(out.contains("RATE_LIMITED"), out);
+        // stderr_tail surfaces the limit message even though it was on stderr, not stdout.
+        assertTrue(out.toLowerCase().contains("usage limit"), out);
+    }
+
+    @Test
+    void delegateWithUnknownPromptNameErrors() {
+        CallToolResult r = client.callTool(new CallToolRequest("delegate",
+                Map.of("agent", "ok", "prompt_name", "does-not-exist")));
+        assertTrue(Boolean.TRUE.equals(r.isError()), text(r));
+        assertTrue(text(r).toLowerCase().contains("no prompt"), text(r));
+    }
+
+    @Test
+    void getJobRequiresJobId() {
+        CallToolResult r = client.callTool(new CallToolRequest("get_job", Map.of()));
+        assertTrue(Boolean.TRUE.equals(r.isError()), text(r));
     }
 }
