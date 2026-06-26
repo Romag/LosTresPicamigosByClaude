@@ -24,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * @param timeoutSeconds default per-run timeout in seconds
  * @param maxOutputChars cap on captured output characters before truncation
  * @param enabled        whether the agent may be auto-routed to (set false for agents that are
- *                       installed but can't usefully run here, e.g. agy in non-TTY mode on Windows)
+ *                       installed but can't usefully run here)
+ * @param pty            run under a pseudo-terminal (needed for TUI CLIs like agy that write to a
+ *                       console rather than a pipe and otherwise produce no capturable output)
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AgentConfig(
@@ -40,7 +42,8 @@ public record AgentConfig(
         List<String> limitPatterns,
         int timeoutSeconds,
         int maxOutputChars,
-        boolean enabled) {
+        boolean enabled,
+        boolean pty) {
 
     /** Normalizes null collections to empty immutable ones and copies collections defensively. */
     public AgentConfig {

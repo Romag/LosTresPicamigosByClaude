@@ -1,5 +1,6 @@
 package com.picamigos.exec;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -8,7 +9,9 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -16,8 +19,9 @@ import java.util.regex.PatternSyntaxException;
 
 import com.picamigos.config.AgentConfig;
 import com.picamigos.config.PromptVia;
-import com.picamigos.util.AnsiStripper;
 import com.picamigos.util.OutputTruncator;
+import com.picamigos.util.TerminalText;
+import com.pty4j.PtyProcessBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,22 +88,30 @@ public final class AgentLauncher {
         log.debug("Launching {} (mode={}, timeout={}s): {}",
                 agent.displayName(), mode, timeoutSeconds, command);
 
-        ProcessBuilder pb = new ProcessBuilder(command).directory(repoDir.toFile());
+        boolean pty = agent.pty();
         long startNanos = System.nanoTime();
         Process process;
         try {
-            process = pb.start();
+            process = pty
+                    ? startPty(command)
+                    : new ProcessBuilder(command).directory(repoDir.toFile()).start();
         } catch (IOException e) {
             throw new AgentLaunchException("Failed to start " + agent.executable() + ": " + e.getMessage(), e);
         }
         obs.onStart(process);
 
-        feedStdin(process, agent.promptVia(), prompt);
+        if (pty) {
+            // PTY agents take the prompt as an argument; close the master's input so the child gets EOF.
+            closeQuietly(process.getOutputStream());
+        } else {
+            feedStdin(process, agent.promptVia(), prompt);
+        }
 
+        // A PTY merges stderr into its single stream, so there is no separate stderr to drain.
         StreamPump outPump = new StreamPump(process.getInputStream(), obs, true);
-        StreamPump errPump = new StreamPump(process.getErrorStream(), obs, false);
         Thread outThread = Thread.ofVirtual().name("agent-stdout").start(outPump);
-        Thread errThread = Thread.ofVirtual().name("agent-stderr").start(errPump);
+        StreamPump errPump = pty ? null : new StreamPump(process.getErrorStream(), obs, false);
+        Thread errThread = errPump == null ? null : Thread.ofVirtual().name("agent-stderr").start(errPump);
 
         boolean finished;
         boolean interrupted = false;
@@ -129,11 +141,13 @@ public final class AgentLauncher {
         // live in the thread-safe buffers, and a still-blocked pump is a cheap virtual thread that
         // exits on its own once the pipe finally EOFs.
         join(outThread, PUMP_JOIN_MILLIS);
-        join(errThread, PUMP_JOIN_MILLIS);
+        if (errThread != null) {
+            join(errThread, PUMP_JOIN_MILLIS);
+        }
 
         long durationMillis = (System.nanoTime() - startNanos) / 1_000_000;
-        String cleanStdout = AnsiStripper.strip(outPump.text());
-        String cleanStderr = AnsiStripper.strip(errPump.text());
+        String cleanStdout = TerminalText.render(outPump.text());
+        String cleanStderr = errPump == null ? "" : TerminalText.render(errPump.text());
 
         if (outcome == null) {
             outcome = classify(exitCode, cleanStdout, cleanStderr, agent.limitPatterns());
@@ -166,6 +180,28 @@ public final class AgentLauncher {
             command.add(prompt);
         }
         return command;
+    }
+
+    /** Starts the command under a pseudo-terminal so TUI CLIs produce capturable output. */
+    private Process startPty(List<String> command) throws IOException {
+        Map<String, String> env = new HashMap<>(System.getenv());
+        env.putIfAbsent("TERM", "xterm-256color");
+        return new PtyProcessBuilder()
+                .setCommand(command.toArray(new String[0]))
+                .setEnvironment(env)
+                .setDirectory(repoDir.toString())
+                .setInitialColumns(200)
+                .setInitialRows(50)
+                .setRedirectErrorStream(true)
+                .start();
+    }
+
+    private static void closeQuietly(Closeable closeable) {
+        try {
+            closeable.close();
+        } catch (IOException e) {
+            // ignore
+        }
     }
 
     /** Writes the prompt to stdin (if {@code STDIN}) and always closes stdin to deliver EOF. */
