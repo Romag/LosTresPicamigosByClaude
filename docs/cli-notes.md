@@ -26,23 +26,21 @@ them in a `--config` override without recompiling.
 - Note: the npm Git-Bash shim `claude` (no extension) is broken on this machine, but `claude.cmd` works;
   `ExecutableResolver` resolves `claude.cmd` and the launcher runs it via `cmd.exe /c`.
 
-## agy (Antigravity / Gemini 3.5 Flash) — ⚠️ KNOWN LIMITATION (no captured output in non-TTY)
+## agy (Antigravity / Gemini 3.5 Flash) — ✅ works via a pseudo-terminal (PTY)
 - Version: `agy 1.0.7` (`agy.exe`, Go binary).
 - Non-interactive: `agy -p/--print/--prompt "<prompt>"` (prompt as arg); auto-approve with
   `--dangerously-skip-permissions`; `--sandbox` (terminal restrictions); `--print-timeout <dur>` (default 5m);
   `--model`. **There is NO `--headless` or `--approve` flag** (contrary to some online guides).
-- **Problem:** when stdout is a pipe (not a real console), `agy` produces **zero bytes** on stdout and
-  stderr (exit 0) — even `agy models` returns nothing over a pipe. Forcing `TERM=dumb`/`CI=1` makes it
-  hang instead. This is agy's TUI renderer requiring a TTY; it writes to the console, bypassing the
-  redirected pipe.
-- **Consequence:** delegations to `antigravity` will currently return empty output when launched via
-  `ProcessBuilder` (which pipes stdout). codex and claude are unaffected.
-- **Workaround (future / out of scope for v1):** run agy under a pseudo-console (Windows ConPTY / a PTY
-  bridge such as the community "agy headless bridge"). The agent stays configured so it works as soon as a
-  PTY layer or an upstream agy fix is in place.
-- **Default:** antigravity ships with `"enabled": false` so it is **not auto-routed** (which would yield
-  empty reviews); an explicit `delegate(agent="antigravity")` still runs it. Set `"enabled": true` via a
-  `--config` override on platforms where agy captures output. See [routing.md](routing.md).
+- **The catch:** `agy` is a TUI renderer that writes to a **console**, not a pipe. Under `ProcessBuilder`
+  (which pipes stdout) it produces **zero bytes** — even `agy models` returns nothing over a pipe, and
+  forcing `TERM=dumb`/`CI=1` just makes it hang.
+- **The fix:** the launcher runs agy under a **pseudo-terminal** via [pty4j](https://github.com/JetBrains/pty4j)
+  (ConPTY on Windows 10+, `forkpty` on Unix). agy then believes it has a real terminal and streams its
+  output, which we capture and clean (`TerminalText` strips ANSI escapes and resolves `\r` line-overwrites).
+  Verified: a real `delegate` to antigravity returns thousands of chars of readable output. Enabled by the
+  per-agent `"pty": true` config flag (set for antigravity in `agents.default.json`).
+- Note: agy in `-p` mode is highly agentic — it narrates its exploration (reading files, running commands)
+  before its conclusion, so its output is verbose. The launcher's timeout still bounds the run.
 
 ## Usage / budget signals
 - No CLI reliably reports remaining 5-hour budget in headless mode (claude `usage --json` unshipped; codex

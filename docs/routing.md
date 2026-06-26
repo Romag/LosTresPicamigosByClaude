@@ -34,12 +34,11 @@ An explicit `agent` always overrides routing — even a disabled agent runs when
 ## Enabling / disabling an agent
 
 Each agent has an `"enabled"` flag (default `true`). When `false`, the agent is **excluded from
-auto-routing and `recommend_agent`**, but an explicit `delegate(agent="…")` still runs it.
+auto-routing and `recommend_agent`**, but an explicit `delegate(agent="…")` still runs it. `list_agents`
+reports each agent's `available` (installed) and `enabled` flags.
 
-`antigravity` ships **`"enabled": false`** because it can't capture output in non-TTY mode on Windows
-(see [cli-notes.md](cli-notes.md)) — this prevents it from being silently auto-routed and returning empty
-reviews. On platforms where `agy` works (or once a PTY bridge exists), set `"enabled": true` via a
-`--config` override. `list_agents` reports each agent's `available` (installed) and `enabled` flags.
+All three agents ship **enabled**. `antigravity` additionally sets `"pty": true` so it runs under a
+pseudo-terminal — without that it would produce no output (see [cli-notes.md](cli-notes.md)).
 
 ## Budget tracking
 
