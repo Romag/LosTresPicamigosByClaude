@@ -26,8 +26,6 @@ import java.util.List;
 public final class FakeAgent {
 
     public static void main(String[] args) throws Exception {
-        String stdin = new String(System.in.readAllBytes(), StandardCharsets.UTF_8);
-
         boolean fromArg = false;
         long sleepMs = 0;
         int exitCode = 0;
@@ -50,6 +48,9 @@ public final class FakeAgent {
             }
         }
 
+        // Read stdin only when the prompt is expected from it — under a PTY there is no stdin EOF, so
+        // an unconditional read would block forever.
+        String stdin = fromArg ? "" : new String(System.in.readAllBytes(), StandardCharsets.UTF_8);
         String prompt = fromArg
                 ? (positionals.isEmpty() ? "" : positionals.get(positionals.size() - 1))
                 : stdin;

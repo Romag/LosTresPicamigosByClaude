@@ -31,7 +31,7 @@ public final class FakeAgents {
                 List.of(), baseArgs, via,
                 Map.of("ask", List.of(), "edit", List.of()),
                 Map.of("implement", 5, "review", 5), "none", limitPatterns,
-                timeoutSeconds, maxOutputChars, true);
+                timeoutSeconds, maxOutputChars, true, false);
     }
 
     /** A config with a handful of fake agents covering the behaviors job tests need. */
@@ -43,7 +43,7 @@ public final class FakeAgents {
                 "veryslow", agent("VerySlow", PromptVia.STDIN, 30, 200_000, List.of(), "--sleep", "20000"),
                 "limit", agent("Limited", PromptVia.STDIN, 30, 200_000, limit, "--limit"),
                 "ghost", new AgentConfig("Ghost", "definitely-not-a-real-binary-xyz", "ghost",
-                        List.of(), List.of(), PromptVia.STDIN, Map.of(), Map.of(), "none", List.of(), 30, 200_000, true));
+                        List.of(), List.of(), PromptVia.STDIN, Map.of(), Map.of(), "none", List.of(), 30, 200_000, true, false));
         return new AgentsConfig(5, agents);
     }
 }

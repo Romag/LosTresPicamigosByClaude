@@ -47,7 +47,7 @@ class AgentLauncherTest {
                 List.of(), baseArgs, via,
                 Map.of("ask", List.of(), "edit", List.of()),
                 Map.of(), "none", limitPatterns,
-                timeoutSeconds, maxOutputChars, true);
+                timeoutSeconds, maxOutputChars, true, false);
     }
 
     @Test
@@ -149,11 +149,32 @@ class AgentLauncherTest {
     }
 
     @Test
+    void ptyModeCapturesOutput() {
+        // Run FakeAgent under a real pseudo-terminal (pty4j). Output must still be captured and
+        // rendered clean. The prompt is passed as an argument (PTY mode does not use stdin).
+        List<String> baseArgs = new ArrayList<>();
+        baseArgs.add("-cp");
+        baseArgs.add(System.getProperty("java.class.path"));
+        baseArgs.add("com.picamigos.test.FakeAgent");
+        baseArgs.add("--from-arg");
+        AgentConfig agent = new AgentConfig(
+                "Pty Fake", "java", "fake", List.of(), baseArgs, PromptVia.ARG,
+                Map.of("ask", List.of()), Map.of(), "none", List.of(),
+                30, 200_000, true, true); // enabled, pty
+
+        LaunchResult r = launcher().run(agent, "pty-prompt-xyz", "ask", null, null);
+
+        assertEquals(Outcome.DONE, r.outcome());
+        assertTrue(r.output().contains("FAKE_OK"), () -> "output: " + r.output());
+        assertTrue(r.output().contains("PROMPT:pty-prompt-xyz"), () -> "output: " + r.output());
+    }
+
+    @Test
     void missingExecutableThrows() {
         AgentConfig agent = new AgentConfig(
                 "Ghost", "definitely-not-a-real-binary-xyz", "ghost",
                 List.of(), List.of(), PromptVia.STDIN,
-                Map.of(), Map.of(), "none", List.of(), 30, 200_000, true);
+                Map.of(), Map.of(), "none", List.of(), 30, 200_000, true, false);
 
         assertThrows(AgentLaunchException.class,
                 () -> launcher().run(agent, "p", "ask", null, null));

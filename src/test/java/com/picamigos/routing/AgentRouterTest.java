@@ -29,7 +29,7 @@ class AgentRouterTest {
                 "Agent-" + executable, executable, "m",
                 List.of(), List.of(), PromptVia.STDIN,
                 Map.of(), Map.of("implement", implement, "review", review),
-                "none", List.of(), 30, 200_000, enabled);
+                "none", List.of(), 30, 200_000, enabled, false);
     }
 
     private static AgentsConfig config(Map<String, AgentConfig> agents) {
