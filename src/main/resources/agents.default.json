@@ -42,11 +42,11 @@
       "executable": "agy",
       "model": "gemini-3.5-flash",
       "aliases": ["gemini", "agy"],
-      "baseArgs": ["-p", "--print-timeout", "10m"],
+      "baseArgs": ["--print-timeout", "10m"],
       "promptVia": "arg",
       "modes": {
-        "ask": ["--sandbox", "--dangerously-skip-permissions"],
-        "edit": ["--dangerously-skip-permissions"]
+        "ask": ["--sandbox", "--dangerously-skip-permissions", "-p"],
+        "edit": ["--dangerously-skip-permissions", "-p"]
       },
       "capabilities": { "implement": 5, "reason": 6, "plan": 6, "review": 7, "test": 6, "docs": 7 },
       "usageParse": "none",

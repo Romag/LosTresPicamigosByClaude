@@ -28,9 +28,14 @@ them in a `--config` override without recompiling.
 
 ## agy (Antigravity / Gemini 3.5 Flash) — ✅ works via a pseudo-terminal (PTY)
 - Version: `agy 1.0.7` (`agy.exe`, Go binary).
-- Non-interactive: `agy -p/--print/--prompt "<prompt>"` (prompt as arg); auto-approve with
-  `--dangerously-skip-permissions`; `--sandbox` (terminal restrictions); `--print-timeout <dur>` (default 5m);
-  `--model`. **There is NO `--headless` or `--approve` flag** (contrary to some online guides).
+- Non-interactive: `agy -p/--print/--prompt "<prompt>"`; auto-approve with `--dangerously-skip-permissions`;
+  `--sandbox` (terminal restrictions); `--print-timeout <dur>` (default 5m); `--model`. **There is NO
+  `--headless` or `--approve` flag** (contrary to some online guides).
+- ⚠️ **`-p`/`--print` consumes the NEXT token as the prompt value** — it is not a positional. So `-p` must be
+  the LAST flag, immediately before the prompt: `agy --print-timeout 10m --sandbox
+  --dangerously-skip-permissions -p "<prompt>"`. Putting another flag after `-p` (e.g. `-p --print-timeout`)
+  makes agy treat that flag name as the prompt and silently ignore the real one. In `agents.default.json`
+  this is why `-p` is the last entry in each of antigravity's `modes` (the launcher appends the prompt last).
 - **The catch:** `agy` is a TUI renderer that writes to a **console**, not a pipe. Under `ProcessBuilder`
   (which pipes stdout) it produces **zero bytes** — even `agy models` returns nothing over a pipe, and
   forcing `TERM=dumb`/`CI=1` just makes it hang.
