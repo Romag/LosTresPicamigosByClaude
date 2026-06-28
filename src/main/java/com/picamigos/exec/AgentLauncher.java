@@ -96,7 +96,7 @@ public final class AgentLauncher {
                     ? startPty(command)
                     : new ProcessBuilder(command).directory(repoDir.toFile()).start();
         } catch (IOException e) {
-            throw new AgentLaunchException("Failed to start " + agent.executable() + ": " + e.getMessage(), e);
+            throw new AgentLaunchException("Failed to start " + agent.executable() + ": " + describe(e), e);
         }
         obs.onStart(process);
 
@@ -182,18 +182,59 @@ public final class AgentLauncher {
         return command;
     }
 
-    /** Starts the command under a pseudo-terminal so TUI CLIs produce capturable output. */
+    /**
+     * Starts the command under a pseudo-terminal so TUI CLIs produce capturable output.
+     *
+     * <p>No single Windows PTY backend works in every launch context (the default auto-detected
+     * backend works under surefire/most shells but has failed in some server launch contexts; the
+     * explicit ConPTY backend works in those but fails under surefire). So on Windows we try the
+     * default first and fall back to explicit ConPTY — PTY creation fails fast, so the fallback is
+     * cheap and whichever backend the environment supports is used.
+     */
     private Process startPty(List<String> command) throws IOException {
+        try {
+            return buildPty(command, false).start();
+        } catch (IOException defaultFailure) {
+            if (!isWindows()) {
+                throw defaultFailure;
+            }
+            log.warn("Default PTY backend failed, retrying with ConPTY: {}", describe(defaultFailure));
+            try {
+                return buildPty(command, true).start();
+            } catch (IOException conPtyFailure) {
+                conPtyFailure.addSuppressed(defaultFailure);
+                throw conPtyFailure;
+            }
+        }
+    }
+
+    private PtyProcessBuilder buildPty(List<String> command, boolean forceConPty) {
         Map<String, String> env = new HashMap<>(System.getenv());
         env.putIfAbsent("TERM", "xterm-256color");
-        return new PtyProcessBuilder()
+        PtyProcessBuilder builder = new PtyProcessBuilder()
                 .setCommand(command.toArray(new String[0]))
                 .setEnvironment(env)
                 .setDirectory(repoDir.toString())
                 .setInitialColumns(200)
                 .setInitialRows(50)
-                .setRedirectErrorStream(true)
-                .start();
+                .setRedirectErrorStream(true);
+        if (forceConPty) {
+            builder.setUseWinConPty(true).setCygwin(false);
+        }
+        return builder;
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("windows");
+    }
+
+    /** Flattens an exception's message and its cause chain, for diagnosable launch-failure reporting. */
+    private static String describe(Throwable t) {
+        StringBuilder sb = new StringBuilder(String.valueOf(t.getMessage()));
+        for (Throwable c = t.getCause(); c != null; c = c.getCause()) {
+            sb.append(" | caused by: ").append(c);
+        }
+        return sb.toString();
     }
 
     private static void closeQuietly(Closeable closeable) {
